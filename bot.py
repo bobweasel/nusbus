@@ -39,6 +39,12 @@ procfile worker?
 
 PORT = int(os.environ.get('PORT', '8443'))
 
+toke = 'test'  # alt local bot
+# toke = 'main'
+
+environ = os.environ.get('environ') or ''
+if 'prod' in environ:
+    toke = 'main'
 
 # https://api.telegram.org/bot<token>/getUpdates
 
@@ -66,7 +72,13 @@ def main(port, token=None, bot=None):
     # log all errors
     app.add_error_handler(error_handler)
 
-    app.run_polling()  # run locally
+    if 'prod_' in environ:
+        app.run_webhook(listen="0.0.0.0",
+                        port=int(port),
+                        url_path=token,
+                        webhook_url=os.environ['webhook'] + token)
+    else: # elif environ == 'local_prod':
+        app.run_polling()  # run locally
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since

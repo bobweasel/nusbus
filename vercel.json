@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "bot.py",
+      "use": "@now/python"
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "bot.py" }
+  ]
+}
