@@ -88,5 +88,7 @@ def main(port, token=None, bot=None):
 
 if __name__ == '__main__':
     TOKEN = os.environ['bot']
+
+    print('running1')
     # BOT = Bots.get(toke)
     main(PORT, token=TOKEN)
