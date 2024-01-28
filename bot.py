@@ -60,6 +60,7 @@ async def post_init(application: Application) -> None:
 
 def main(port, token=None, bot=None):
     """run"""
+    print('running')
     app = Application.builder().token(token).post_init(post_init).build()
 
     # app.add_handler(forward_handler)
