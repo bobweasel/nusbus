@@ -2,11 +2,12 @@
   "builds": [
     {
       "src": "bot.py",
-      "use": "@now/python"
+      "use": "@vercel/python"
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "bot.py" }
+    { "src": "/(.*)",
+      "dest": "bot.py" }
   ],
   "functions": {
     "*.py": {
