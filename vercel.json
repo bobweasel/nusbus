@@ -1,6 +1,6 @@
 {
   "functions": {
-    "bot.py": {
+    "api/bot.py": {
       "runtime": "python3.9"
     }
   }
