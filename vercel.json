@@ -7,5 +7,10 @@
   ],
   "routes": [
     { "src": "/(.*)", "dest": "bot.py" }
-  ]
+  ],
+  "functions": {
+    "*.py": {
+      "runtime": "python3.9"
+    }
+  }
 }
