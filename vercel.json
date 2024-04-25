@@ -1,7 +1,12 @@
 {
-  "functions": {
-    "bot.py": {
-      "runtime": "python3.9"
-    }
-  }
+	    "builds": [{
+	        "src": "bot.py",
+	        "use": "@vercel/python"
+	    }],
+	    "routes": [
+	        {
+	            "src": "/(.*)",
+	            "dest": "bot.py"
+	        }
+	    ]
 }

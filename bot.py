@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+import telegram
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -24,6 +26,7 @@ import os
 import datetime as dt
 # from tg_bot.bot import Bots
 from dotenv import load_dotenv
+from fastapi import FastAPI, Request, Response
 
 load_dotenv()
 
@@ -47,20 +50,23 @@ if 'prod' in environ:
     toke = 'main'
 
 # https://api.telegram.org/bot<token>/getUpdates
-
-async def post_init(application: Application) -> None:
-    command = [BotCommand("help", "view help"),
-               BotCommand("bus", "see available services"),
-               BotCommand("bus_svc", "see available services & routes"),
-               BotCommand("stops", "see stops"),
-               BotCommand("next", "see next bus at a stop"),
-               ]
-    await application.bot.set_my_commands(command)
+# https://docs.python-telegram-bot.org/en/stable/examples.customwebhookbot.html
+# https://www.freecodecamp.org/news/how-to-build-and-deploy-python-telegram-bot-v20-webhooks/
+# https://github.com/hsdevelops/cron-telebot/blob/main/main.py
+# https://github.com/orgs/vercel/discussions/2769
 
 
-def main(port, token=None, bot=None):
+def main(token=None):
     """run"""
-    print('running')
+    async def post_init(application: Application) -> None:
+        command = [BotCommand("help", "view help"),
+                   BotCommand("bus", "see available services"),
+                   BotCommand("bus_svc", "see available services & routes"),
+                   BotCommand("stops", "see stops"),
+                   BotCommand("next", "see next bus at a stop"),
+                   ]
+        await application.bot.set_my_commands(command)
+
     app = Application.builder().token(token).post_init(post_init).build()
 
     # app.add_handler(forward_handler)
@@ -73,12 +79,30 @@ def main(port, token=None, bot=None):
     # log all errors
     app.add_error_handler(error_handler)
 
-    if 'prod_' in environ:
-        app.run_webhook(listen="0.0.0.0",
-                        port=int(port),
-                        url_path=token,
-                        webhook_url=os.environ['webhook'] + token)
-    else: # elif environ == 'local_prod':
+    return app
+
+
+def start(port, token):
+    app = main(token)
+    # Start the Bot
+    if environ == 'prod_vercel':
+
+        app.read_timeout(7).get_updates_read_timeout(42)
+        @asynccontextmanager
+        async def lifespan(_: FastAPI):
+            await app.bot.setWebhook(os.environ['webhook'] + token)
+            async with app:
+                await app.start()
+                yield
+                await app.stop()
+
+        # Initialize FastAPI app (similar to Flask)
+        app = FastAPI(lifespan=lifespan)
+    elif environ == 'local_prod':
+        # nginx
+        app.run_polling()
+        pass
+    else:
         app.run_polling()  # run locally
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
@@ -87,9 +111,5 @@ def main(port, token=None, bot=None):
 
 
 if __name__ == '__main__':
-    print('running2')
     TOKEN = os.environ['bot']
-
-    print('running1')
-    # BOT = Bots.get(toke)
-    main(PORT, token=TOKEN)
+    start(PORT, token=TOKEN)
