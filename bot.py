@@ -1,115 +1,48 @@
 from contextlib import asynccontextmanager
-import telegram
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ChatMemberHandler,
-    filters
-)
-from telegram import (
-    BotCommand
-)
-from functions import (
-#     update_check,
-#     update_check1,
-#     post_scheduling,
-#     invalidate_match,
-#     set_timer, unset,
-#     forward,
-    conversation,
-    error_handler,
-#     show_group_id,
-#     echo
-)
-import os
-import datetime as dt
-# from tg_bot.bot import Bots
-from dotenv import load_dotenv
+from http import HTTPStatus
+from telegram import Update
+from telegram.ext import Application, CommandHandler
+from telegram.ext._contexttypes import ContextTypes
 from fastapi import FastAPI, Request, Response
+import uvicorn
+import os
+from dotenv import load_dotenv
 
 load_dotenv()
 
-"""
-Simple Bot to reply to Telegram messages taken from the python-telegram-bot examples.
+# Initialize python telegram bot
+ptb = (
+        Application.builder()
+        .token(os.environ.get('bot'))
+        .read_timeout(7)
+        .get_updates_read_timeout(42)
+        .build()
+)
 
-debugging locally?
-https://github.com/tdlib/telegram-bot-api
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await ptb.bot.setWebhook(f"{os.environ.get('webhook')}") # replace <your-webhook-url>
+    async with ptb:
+        await ptb.start()
+        yield
+        await ptb.stop()
 
-add token to environment
-procfile worker?
-"""
+# Initialize FastAPI app (similar to Flask)
+app = FastAPI(lifespan=lifespan)
 
-PORT = int(os.environ.get('PORT', '8443'))
+@app.post("/")
+async def process_update(request: Request):
+    req = await request.json()
+    update = Update.de_json(req, ptb.bot)
+    await ptb.process_update(update)
+    return Response(status_code=HTTPStatus.OK)
 
-toke = 'test'  # alt local bot
-# toke = 'main'
+# Example handler
+async def start(update, _: ContextTypes.DEFAULT_TYPE):
+    """Send a message when the command /start is issued."""
+    await update.message.reply_text("starting...")
 
-environ = os.environ.get('environ') or ''
-if 'prod' in environ:
-    toke = 'main'
-
-# https://api.telegram.org/bot<token>/getUpdates
-# https://docs.python-telegram-bot.org/en/stable/examples.customwebhookbot.html
-# https://www.freecodecamp.org/news/how-to-build-and-deploy-python-telegram-bot-v20-webhooks/
-# https://github.com/hsdevelops/cron-telebot/blob/main/main.py
-# https://github.com/orgs/vercel/discussions/2769
-
-
-def main(token=None):
-    """run"""
-    async def post_init(application: Application) -> None:
-        command = [BotCommand("help", "view help"),
-                   BotCommand("bus", "see available services"),
-                   BotCommand("bus_svc", "see available services & routes"),
-                   BotCommand("stops", "see stops"),
-                   BotCommand("next", "see next bus at a stop"),
-                   ]
-        await application.bot.set_my_commands(command)
-
-    app = Application.builder().token(token).post_init(post_init).build()
-
-    # app.add_handler(forward_handler)
-    app.add_handler(conversation)  # contains start, must be last
-
-    # on noncommand i.e. message - echo the message on Telegram
-    # app.add_handler(MessageHandler(filters.TEXT, echo))  # & ~Filters.command  Filters.chat_type.private
-    # catch everything else, outside conversation to not reenter
-
-    # log all errors
-    app.add_error_handler(error_handler)
-
-    return app
+ptb.add_handler(CommandHandler("start", start))
+uvicorn.run(app, host="0.0.0.0", port=8443)
 
 
-def start(port, token):
-    app = main(token)
-    # Start the Bot
-    if environ == 'prod_vercel':
-
-        app.read_timeout(7).get_updates_read_timeout(42)
-        @asynccontextmanager
-        async def lifespan(_: FastAPI):
-            await app.bot.setWebhook(os.environ['webhook'] + token)
-            async with app:
-                await app.start()
-                yield
-                await app.stop()
-
-        # Initialize FastAPI app (similar to Flask)
-        app = FastAPI(lifespan=lifespan)
-    elif environ == 'local_prod':
-        # nginx
-        app.run_polling()
-        pass
-    else:
-        app.run_polling()  # run locally
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
-
-
-if __name__ == '__main__':
-    TOKEN = os.environ['bot']
-    start(PORT, token=TOKEN)
